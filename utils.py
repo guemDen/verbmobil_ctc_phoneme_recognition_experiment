@@ -126,7 +126,7 @@ def pad_sequences(sequences, maxlen=None, dtype=np.float32, padding='post', trun
 
       trunc = np.asarray(trunc, dtype=dtype)
       if trunc.shape[1:] != sample_shape:
-         raise ValueError('Shape of sample %s of sequence at position %s is different from expected shape %s' % (trunc.shape[1:], idx, sampleShape))
+         raise ValueError('Shape of sample %s of sequence at position %s is different from expected shape %s' % (trunc.shape[1:], idx, sample_shape))
 
       if padding == 'post':
          x[idx, :len(trunc)] = trunc
