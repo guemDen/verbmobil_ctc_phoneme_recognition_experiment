@@ -51,10 +51,10 @@ train_targets_set = train_target[:100]
 feature_size = train_input[0].shape[1]
 num_classes = len(int2sym) + 1
 
-num_epochs = 40
+num_epochs = 1024
 num_hidden = 40
 num_layers = 1
-batch_size = 2
+batch_size = 32
 learning_rate = 0.0001
 momentum = 0.9
 

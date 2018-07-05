@@ -27,7 +27,7 @@ def inference(x, seq_len, W, b, stack, num_hidden, num_classes):
 
     logits = tf.matmul(outputs, W) + b
     logits = tf.reshape(logits, [batch_size, -1, num_classes])
-    logits = tf.transpose(logits, (1, 0, 2), name=logits)
+    logits = tf.transpose(logits, (1, 0, 2))
 
     return logits
 
@@ -56,23 +56,25 @@ def decode(logits, seq_len):
 
 def label_error_rate(decoded, y):
 
-    return tf.reduce_mean(tf.edit_distance(tf.cast(decoded[0], tf.int32), y))
+    ler = tf.reduce_mean(tf.edit_distance(tf.cast(decoded, tf.int32), y))
+
+    return ler
 
 
 def run_model(x_train, y_train, num_features, num_examples, num_epochs, batch_size,
     num_batches_per_epoch, learning_rate, momentum, num_layers, num_hidden, num_classes):
 
-    x_train = tf.placeholder(tf.float32, [None, None, num_features])
-    y_train = tf.sparse_placeholder(tf.int32)
+    x = tf.placeholder(tf.float32, [None, None, num_features])
+    y = tf.sparse_placeholder(tf.int32)
     seq_len = tf.placeholder(tf.int32, [None])
     W = tf.Variable(tf.truncated_normal([num_hidden, num_classes], stddev=0.1))
     b = tf.Variable(tf.constant(0., shape=[num_classes]))
 
     stack = model(num_layers, num_hidden)
 
-    logits = inference(x_train, seq_len, W, b, stack, num_hidden, num_classes)
+    logits = inference(x, seq_len, W, b, stack, num_hidden, num_classes)
 
-    loss_ = loss(y_train, logits, seq_len)
+    loss_ = loss(y, logits, seq_len)
 
     cost_ = cost(loss_)
 
@@ -80,7 +82,7 @@ def run_model(x_train, y_train, num_features, num_examples, num_epochs, batch_si
 
     decoded, log_prob = decode(logits, seq_len)
 
-    ler = label_error_rate(decoded, y_train)
+    ler = label_error_rate(decoded= decoded[0], y= y)
 
     init = tf.global_variables_initializer()
     with tf.Session() as session:
@@ -103,16 +105,16 @@ def run_model(x_train, y_train, num_features, num_examples, num_epochs, batch_si
 
                 batch_y_train = utils.sparse_tuple_from(y_train[indexes])
 
-                feed = {x_train: batch_x_train,
-                        y_train: batch_y_train,
+                feed = {x: batch_x_train,
+                        y: batch_y_train,
                         seq_len: batch_x_train_seq_len}
 
                 batch_cost, _ = session.run([cost_, optimizer], feed)
                 train_cost += batch_cost*batch_size
                 train_ler += session.run(ler, feed_dict=feed)*batch_size
 
-        train_cost /= num_examples
-        train_ler /= num_examples
+            train_cost /= num_examples
+            train_ler /= num_examples
 
-        log = "Epoch {}/{}, train_cost = {:.3f}, train_ler = {:.3f}, time = {:.3f}"
-        print(log.format(curr_epoch+1, num_epochs, train_cost, train_ler, time.time() - start))
+            log = "Epoch {}/{}, train_cost = {:.3f}, train_ler = {:.3f}, time = {:.3f}"
+            print(log.format(curr_epoch+1, num_epochs, train_cost, train_ler, time.time() - start))
