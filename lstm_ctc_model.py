@@ -2,6 +2,8 @@ import tensorflow as tf
 import numpy as np
 import time
 
+import utils
+
 
 def model(num_layers, num_units):
 
@@ -97,12 +99,13 @@ def run_model(x_train, y_train, num_features, num_examples, num_epochs, batch_si
                 indexes = [i % num_examples for i in range(batch * batch_size, (batch + 1) * batch_size)]
 
                 batch_x_train = x_train[indexes]
+                batch_x_train, batch_x_train_seq_len = utils.pad_sequences(batch_x_train)
 
-                batch_y_train = y_train[indexes]
+                batch_y_train = utils.sparse_tuple_from(y_train[indexes])
 
                 feed = {x_train: batch_x_train,
                         y_train: batch_y_train,
-                        seq_len: None}
+                        seq_len: batch_x_train_seq_len}
 
                 batch_cost, _ = session.run([cost_, optimizer], feed)
                 train_cost += batch_cost*batch_size
