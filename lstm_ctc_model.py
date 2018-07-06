@@ -87,9 +87,27 @@ def run_model(x_train, y_train, x_val, y_val, num_features, num_train_examples, 
 
         ler = label_error_rate(decoded=decoded[0], y=y)
 
+        #summaries
+        #cost, ler for train set
+        tf.summary.scalar("training_cost", cost_)
+        tf.summary.scalar("training_label_error_rate", ler)
+        summary_ops_train = tf.summary.merge_all()
+
+        #cost, ler for val set
+        tf.summary.scalar("validation_cost", cost_)
+        tf.summary.scalar("validation_label_error_rate", ler)
+        summary_ops_validation = tf.summary.merge_all()
+
     with tf.Session(graph=graph) as session:
         init = tf.global_variables_initializer()
         session.run(init)
+
+        # path soll automatisch fuer jeweilige hyperparameter config erzeugt werden
+        path_model_hyperparams = "model-num_layers=%d-num_hidden=%d-num_epochs=%d-batch_size=%d-learning_rate=%s" \
+                                % (num_layers, num_hidden, num_epochs, batch_size, str(learning_rate))
+
+        writer_train = tf.summary.FileWriter('./tensorboard_graphs/' + path_model_hyperparams + '/train', session.graph)
+        writer_validation = tf.summary.FileWriter('./tensorboard_graphs/' + path_model_hyperparams + '/validation')
 
         shuffled_indexes = np.random.permutation(num_train_examples)
         x_train = x_train[shuffled_indexes]
@@ -115,9 +133,12 @@ def run_model(x_train, y_train, x_val, y_val, num_features, num_train_examples, 
                 batch_cost, _ = session.run([cost_, optimizer], feed)
                 train_cost += batch_cost*batch_size
                 train_ler += session.run(ler, feed_dict=feed)*batch_size
+                summary_train = session.run(summary_ops_train, feed_dict=feed)
 
             train_cost /= num_train_examples
             train_ler /= num_train_examples
+
+            writer_train.add_summary(summary_train, global_step=curr_epoch)
 
             val_indexes = [i for i in range(num_val_examples)]
             x_validation, x_val_seq_len = utils.pad_sequences(x_val[val_indexes])
@@ -126,6 +147,8 @@ def run_model(x_train, y_train, x_val, y_val, num_features, num_train_examples, 
             val_feed = {x: x_validation, y: y_validation, seq_len: x_val_seq_len}
 
             val_cost, val_ler = session.run([cost_, ler], feed_dict=val_feed)
+            summary_validation = session.run(summary_ops_validation, feed_dict=val_feed)
+            writer_validation.add_summary(summary_validation, global_step=curr_epoch)
 
             log = "Epoch {}/{}, train_cost = {:.3f}, train_ler = {:.3f}, val_cost = {:.3f}, val_ler = {:.3f}, time = {:.3f}"
             print(log.format(curr_epoch+1, num_epochs, train_cost, train_ler, val_cost, val_ler, time.time() - start))
