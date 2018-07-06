@@ -3,7 +3,7 @@ import numpy as np
 import time
 
 import utils
-
+from vocab import vocab
 
 def model(num_layers, num_units):
 
@@ -27,7 +27,7 @@ def inference(x, seq_len, W, b, stack, num_hidden, num_classes):
 
     logits = tf.matmul(outputs, W) + b
     logits = tf.reshape(logits, [batch_size, -1, num_classes])
-    logits = tf.transpose(logits, (1, 0, 2), name='logits')
+    logits = tf.transpose(logits, (1, 0, 2), name=vocab.logits)
 
     return logits
 
@@ -39,12 +39,12 @@ def loss(y, logits, seq_len):
 
 def cost(loss):
 
-    return tf.reduce_mean(loss, name='cost')
+    return tf.reduce_mean(loss, name=vocab.cost)
 
 
 def optimize(learning_rate, momentum, cost):
 
-    return tf.train.MomentumOptimizer(learning_rate, momentum, name='optimizer').minimize(cost)
+    return tf.train.MomentumOptimizer(learning_rate, momentum, name=vocab.optimizer).minimize(cost)
 
 
 def decode(logits, seq_len):
@@ -56,7 +56,7 @@ def decode(logits, seq_len):
 
 def label_error_rate(decoded, y):
 
-    ler = tf.reduce_mean(tf.edit_distance(tf.cast(decoded, tf.int32), y), name='ler')
+    ler = tf.reduce_mean(tf.edit_distance(tf.cast(decoded, tf.int32), y), name=vocab.label_error_rate)
 
     return ler
 
@@ -66,9 +66,9 @@ def run_model(x_train, y_train, x_val, y_val, num_features, num_train_examples, 
 
     graph = tf.Graph()
     with graph.as_default():
-        x = tf.placeholder(tf.float32, [None, None, num_features])
-        y = tf.sparse_placeholder(tf.int32)
-        seq_len = tf.placeholder(tf.int32, [None])
+        x = tf.placeholder(tf.float32, [None, None, num_features], name=vocab.x)
+        y = tf.sparse_placeholder(tf.int32, name=vocab.y)
+        seq_len = tf.placeholder(tf.int32, [None], name=vocab.seq_len)
 
         W = tf.Variable(tf.truncated_normal([num_hidden, num_classes], stddev=0.1))
         b = tf.Variable(tf.constant(0., shape=[num_classes]))
