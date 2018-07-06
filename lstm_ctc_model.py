@@ -1,6 +1,7 @@
 import tensorflow as tf
 import numpy as np
 import time
+from datetime import datetime
 
 import utils
 from vocab import vocab
@@ -70,8 +71,8 @@ def run_model(x_train, y_train, x_val, y_val, num_features, num_train_examples, 
         y = tf.sparse_placeholder(tf.int32, name=vocab.y)
         seq_len = tf.placeholder(tf.int32, [None], name=vocab.seq_len)
 
-        W = tf.Variable(tf.truncated_normal([num_hidden, num_classes], stddev=0.1))
-        b = tf.Variable(tf.constant(0., shape=[num_classes]))
+        W = tf.Variable(tf.truncated_normal([num_hidden, num_classes], stddev=0.1), name=vocab.W)
+        b = tf.Variable(tf.constant(0., shape=[num_classes]), name=vocab.b)
 
         stack = model(num_layers, num_hidden)
 
@@ -86,6 +87,8 @@ def run_model(x_train, y_train, x_val, y_val, num_features, num_train_examples, 
         decoded, log_prob = decode(logits, seq_len)
 
         ler = label_error_rate(decoded=decoded[0], y=y)
+
+        saver_early_stopping = tf.train.Saver(max_to_keep=0)
 
         #summaries
         #cost, ler for train set
@@ -102,9 +105,9 @@ def run_model(x_train, y_train, x_val, y_val, num_features, num_train_examples, 
         init = tf.global_variables_initializer()
         session.run(init)
 
-        # path soll automatisch fuer jeweilige hyperparameter config erzeugt werden
-        path_model_hyperparams = "model-num_layers=%d-num_hidden=%d-num_epochs=%d-batch_size=%d-learning_rate=%s" \
-                                % (num_layers, num_hidden, num_epochs, batch_size, str(learning_rate))
+        now = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+        path_model_hyperparams = "model%s-num_layers=%d-num_hidden=%d-num_epochs=%d-batch_size=%d-learning_rate=%s" \
+                                % (str(now), num_layers, num_hidden, num_epochs, batch_size, str(learning_rate))
 
         writer_train = tf.summary.FileWriter('./tensorboard_graphs/' + path_model_hyperparams + '/train', session.graph)
         writer_validation = tf.summary.FileWriter('./tensorboard_graphs/' + path_model_hyperparams + '/validation')
@@ -113,9 +116,15 @@ def run_model(x_train, y_train, x_val, y_val, num_features, num_train_examples, 
         x_train = x_train[shuffled_indexes]
         y_train = y_train[shuffled_indexes]
 
+        best_validation_accuracy = 0.0
+        last_improvement = 0
+        require_improvement = 100
+        total_epochs = 0
+
         for curr_epoch in range(num_epochs):
             train_cost = train_ler = 0
             start = time.time()
+            total_epochs += 1
 
             for batch in range(num_batches_per_epoch):
 
@@ -137,6 +146,8 @@ def run_model(x_train, y_train, x_val, y_val, num_features, num_train_examples, 
 
             train_cost /= num_train_examples
             train_ler /= num_train_examples
+            #train_cost_all = train_cost
+            #train_ler_all = train_ler
 
             writer_train.add_summary(summary_train, global_step=curr_epoch)
 
@@ -150,5 +161,22 @@ def run_model(x_train, y_train, x_val, y_val, num_features, num_train_examples, 
             summary_validation = session.run(summary_ops_validation, feed_dict=val_feed)
             writer_validation.add_summary(summary_validation, global_step=curr_epoch)
 
+            if(total_epochs % 10 == 0) or (curr_epoch == (num_epochs-1)):
+                if val_ler > best_validation_accuracy:
+                    best_validation_accuracy = val_ler
+                    print(best_validation_accuracy)
+                    last_improvement = total_epochs
+                    saver_early_stopping.save(sess=session, save_path= './checkpoints/' + path_model_hyperparams + '/best_checkpoints')
+                    improved_str = '*'
+                else:
+                    improved_str = ''
+
+                log = "Epoch: {0:>6}, Train-Epoch Accuracy: {1:>6.1%}, Validation Accuracy: {2:>6.1%} {3}"
+                print(log.format(curr_epoch + 1, train_ler, val_ler, improved_str))
+
             log = "Epoch {}/{}, train_cost = {:.3f}, train_ler = {:.3f}, val_cost = {:.3f}, val_ler = {:.3f}, time = {:.3f}"
-            print(log.format(curr_epoch+1, num_epochs, train_cost, train_ler, val_cost, val_ler, time.time() - start))
+            print(log.format(curr_epoch + 1, num_epochs, train_cost, train_ler, val_cost, val_ler, time.time() - start))
+
+            if total_epochs - last_improvement > require_improvement:
+                print("No improvement found in a while, stopping training.")
+                break
