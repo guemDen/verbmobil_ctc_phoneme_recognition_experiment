@@ -44,9 +44,11 @@ for utt_key, mfcc in inputs.items():
 
 train_input = np.asarray(t_inputs)
 train_inputs_set = train_input[:100]
+train_inputs_val_set = train_input[101:111]
 
 train_target = np.asarray(t_targets)
 train_targets_set = train_target[:100]
+train_targets_val_set = train_target[101:111]
 
 feature_size = train_input[0].shape[1]
 num_classes = len(int2sym) + 1
@@ -61,6 +63,6 @@ momentum = 0.9
 num_examples = 100
 num_batches_per_epoch = int(num_examples/batch_size)
 
-lstm_ctc_model.run_model(train_inputs_set, train_targets_set, feature_size, num_examples,
-            num_epochs, batch_size, num_batches_per_epoch, learning_rate, momentum,
-            num_layers, num_hidden, num_classes)
+lstm_ctc_model.run_model(train_inputs_set, train_targets_set, train_inputs_val_set, train_targets_val_set, feature_size,
+            num_examples, num_epochs, batch_size, num_batches_per_epoch, learning_rate, momentum, num_layers, num_hidden,
+            num_classes)

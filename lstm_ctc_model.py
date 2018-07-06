@@ -61,7 +61,7 @@ def label_error_rate(decoded, y):
     return ler
 
 
-def run_model(x_train, y_train, num_features, num_examples, num_epochs, batch_size,
+def run_model(x_train, y_train, x_val, y_val, num_features, num_examples, num_epochs, batch_size,
     num_batches_per_epoch, learning_rate, momentum, num_layers, num_hidden, num_classes):
 
     x = tf.placeholder(tf.float32, [None, None, num_features])
@@ -82,7 +82,7 @@ def run_model(x_train, y_train, num_features, num_examples, num_epochs, batch_si
 
     decoded, log_prob = decode(logits, seq_len)
 
-    ler = label_error_rate(decoded= decoded[0], y= y)
+    ler = label_error_rate(decoded=decoded[0], y=y)
 
     init = tf.global_variables_initializer()
     with tf.Session() as session:
@@ -116,5 +116,17 @@ def run_model(x_train, y_train, num_features, num_examples, num_epochs, batch_si
             train_cost /= num_examples
             train_ler /= num_examples
 
-            log = "Epoch {}/{}, train_cost = {:.3f}, train_ler = {:.3f}, time = {:.3f}"
-            print(log.format(curr_epoch+1, num_epochs, train_cost, train_ler, time.time() - start))
+            #soll das validation set auch geshuffelt werden?
+            #wie viele beispiele aus dem validation set sollten in session.run() ausgefuehrt werden?
+            #index erstellung in funktion kapseln drys
+            val_indexes = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+            #x_val als parameter, nicht noch als variablennamen fuer zuweisung verwenden
+            x_validation, x_val_seq_len = utils.pad_sequences(x_val[val_indexes])
+            y_validation = utils.sparse_tuple_from(y_val[val_indexes])
+
+            val_feed = {x: x_validation, y: y_validation, seq_len: x_val_seq_len}
+
+            val_cost, val_ler = session.run([cost_, ler], feed_dict=val_feed)
+
+            log = "Epoch {}/{}, train_cost = {:.3f}, train_ler = {:.3f}, val_cost = {:.3f}, val_ler = {:.3f}, time = {:.3f}"
+            print(log.format(curr_epoch+1, num_epochs, train_cost, train_ler, val_cost, val_ler, time.time() - start))
