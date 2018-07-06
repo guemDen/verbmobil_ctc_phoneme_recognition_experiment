@@ -61,7 +61,7 @@ def label_error_rate(decoded, y):
     return ler
 
 
-def run_model(x_train, y_train, x_val, y_val, num_features, num_examples, num_epochs, batch_size,
+def run_model(x_train, y_train, x_val, y_val, num_features, num_train_examples, num_val_examples, num_epochs, batch_size,
     num_batches_per_epoch, learning_rate, momentum, num_layers, num_hidden, num_classes):
 
     x = tf.placeholder(tf.float32, [None, None, num_features])
@@ -88,7 +88,7 @@ def run_model(x_train, y_train, x_val, y_val, num_features, num_examples, num_ep
     with tf.Session() as session:
         session.run(init)
 
-        shuffled_indexes = np.random.permutation(num_examples)
+        shuffled_indexes = np.random.permutation(num_train_examples)
         x_train = x_train[shuffled_indexes]
         y_train = y_train[shuffled_indexes]
 
@@ -98,7 +98,7 @@ def run_model(x_train, y_train, x_val, y_val, num_features, num_examples, num_ep
 
             for batch in range(num_batches_per_epoch):
 
-                indexes = [i % num_examples for i in range(batch * batch_size, (batch + 1) * batch_size)]
+                indexes = [i % num_train_examples for i in range(batch * batch_size, (batch + 1) * batch_size)]
 
                 batch_x_train = x_train[indexes]
                 batch_x_train, batch_x_train_seq_len = utils.pad_sequences(batch_x_train)
@@ -113,14 +113,17 @@ def run_model(x_train, y_train, x_val, y_val, num_features, num_examples, num_ep
                 train_cost += batch_cost*batch_size
                 train_ler += session.run(ler, feed_dict=feed)*batch_size
 
-            train_cost /= num_examples
-            train_ler /= num_examples
+            train_cost /= num_train_examples
+            train_ler /= num_train_examples
 
-            #soll das validation set auch geshuffelt werden?
-            #wie viele beispiele aus dem validation set sollten in session.run() ausgefuehrt werden?
-            #index erstellung in funktion kapseln drys
-            val_indexes = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-            #x_val als parameter, nicht noch als variablennamen fuer zuweisung verwenden
+            # soll das validation set auch geshuffelt werden?
+            # wie viele beispiele aus dem validation set sollten in session.run() ausgefuehrt werden?
+            # index erstellung in funktion kapseln drys
+            # anzahl der examples des validation sets nehmen
+            # kein shuffling fuer val set
+            # shuffled_val_indexes = np.random.permutation(val_indexes)
+            # x_val als parameter, nicht noch als variablennamen fuer zuweisung verwenden
+            val_indexes = [i for i in range(num_val_examples)]
             x_validation, x_val_seq_len = utils.pad_sequences(x_val[val_indexes])
             y_validation = utils.sparse_tuple_from(y_val[val_indexes])
 

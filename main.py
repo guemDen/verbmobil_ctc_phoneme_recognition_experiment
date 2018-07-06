@@ -57,12 +57,13 @@ num_epochs = 1024
 num_hidden = 40
 num_layers = 1
 batch_size = 32
-learning_rate = 0.0001
+learning_rate = 0.001
 momentum = 0.9
 
-num_examples = 100
-num_batches_per_epoch = int(num_examples/batch_size)
+num_train_examples = 100
+num_val_examples = 10
+num_batches_per_epoch = int(num_train_examples/batch_size)
 
 lstm_ctc_model.run_model(train_inputs_set, train_targets_set, train_inputs_val_set, train_targets_val_set, feature_size,
-            num_examples, num_epochs, batch_size, num_batches_per_epoch, learning_rate, momentum, num_layers, num_hidden,
-            num_classes)
+            num_train_examples, num_val_examples, num_epochs, batch_size, num_batches_per_epoch, learning_rate, momentum,
+            num_layers, num_hidden, num_classes)
