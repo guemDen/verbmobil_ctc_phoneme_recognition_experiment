@@ -27,7 +27,7 @@ def inference(x, seq_len, W, b, stack, num_hidden, num_classes):
 
     logits = tf.matmul(outputs, W) + b
     logits = tf.reshape(logits, [batch_size, -1, num_classes])
-    logits = tf.transpose(logits, (1, 0, 2))
+    logits = tf.transpose(logits, (1, 0, 2), name='logits')
 
     return logits
 
@@ -39,12 +39,12 @@ def loss(y, logits, seq_len):
 
 def cost(loss):
 
-    return tf.reduce_mean(loss)
+    return tf.reduce_mean(loss, name='cost')
 
 
 def optimize(learning_rate, momentum, cost):
 
-    return tf.train.MomentumOptimizer(learning_rate, momentum).minimize(cost)
+    return tf.train.MomentumOptimizer(learning_rate, momentum, name='optimizer').minimize(cost)
 
 
 def decode(logits, seq_len):
@@ -56,7 +56,7 @@ def decode(logits, seq_len):
 
 def label_error_rate(decoded, y):
 
-    ler = tf.reduce_mean(tf.edit_distance(tf.cast(decoded, tf.int32), y))
+    ler = tf.reduce_mean(tf.edit_distance(tf.cast(decoded, tf.int32), y), name='ler')
 
     return ler
 
@@ -64,28 +64,31 @@ def label_error_rate(decoded, y):
 def run_model(x_train, y_train, x_val, y_val, num_features, num_train_examples, num_val_examples, num_epochs, batch_size,
     num_batches_per_epoch, learning_rate, momentum, num_layers, num_hidden, num_classes):
 
-    x = tf.placeholder(tf.float32, [None, None, num_features])
-    y = tf.sparse_placeholder(tf.int32)
-    seq_len = tf.placeholder(tf.int32, [None])
-    W = tf.Variable(tf.truncated_normal([num_hidden, num_classes], stddev=0.1))
-    b = tf.Variable(tf.constant(0., shape=[num_classes]))
+    graph = tf.Graph()
+    with graph.as_default():
+        x = tf.placeholder(tf.float32, [None, None, num_features])
+        y = tf.sparse_placeholder(tf.int32)
+        seq_len = tf.placeholder(tf.int32, [None])
 
-    stack = model(num_layers, num_hidden)
+        W = tf.Variable(tf.truncated_normal([num_hidden, num_classes], stddev=0.1))
+        b = tf.Variable(tf.constant(0., shape=[num_classes]))
 
-    logits = inference(x, seq_len, W, b, stack, num_hidden, num_classes)
+        stack = model(num_layers, num_hidden)
 
-    loss_ = loss(y, logits, seq_len)
+        logits = inference(x, seq_len, W, b, stack, num_hidden, num_classes)
 
-    cost_ = cost(loss_)
+        loss_ = loss(y, logits, seq_len)
 
-    optimizer = optimize(learning_rate, momentum, cost_)
+        cost_ = cost(loss_)
 
-    decoded, log_prob = decode(logits, seq_len)
+        optimizer = optimize(learning_rate, momentum, cost_)
 
-    ler = label_error_rate(decoded=decoded[0], y=y)
+        decoded, log_prob = decode(logits, seq_len)
 
-    init = tf.global_variables_initializer()
-    with tf.Session() as session:
+        ler = label_error_rate(decoded=decoded[0], y=y)
+
+    with tf.Session(graph=graph) as session:
+        init = tf.global_variables_initializer()
         session.run(init)
 
         shuffled_indexes = np.random.permutation(num_train_examples)
@@ -116,13 +119,6 @@ def run_model(x_train, y_train, x_val, y_val, num_features, num_train_examples, 
             train_cost /= num_train_examples
             train_ler /= num_train_examples
 
-            # soll das validation set auch geshuffelt werden?
-            # wie viele beispiele aus dem validation set sollten in session.run() ausgefuehrt werden?
-            # index erstellung in funktion kapseln drys
-            # anzahl der examples des validation sets nehmen
-            # kein shuffling fuer val set
-            # shuffled_val_indexes = np.random.permutation(val_indexes)
-            # x_val als parameter, nicht noch als variablennamen fuer zuweisung verwenden
             val_indexes = [i for i in range(num_val_examples)]
             x_validation, x_val_seq_len = utils.pad_sequences(x_val[val_indexes])
             y_validation = utils.sparse_tuple_from(y_val[val_indexes])
